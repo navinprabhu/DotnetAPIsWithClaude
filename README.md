@@ -7,6 +7,7 @@
 [![.NET](https://img.shields.io/badge/.NET-8.0-purple.svg)](https://dotnet.microsoft.com/)
 [![Docker](https://img.shields.io/badge/Docker-Enabled-blue.svg)](https://www.docker.com/)
 
+This repo is partial copy of private repo for sharing the concept.
 A modern, cloud-native library management system built with .NET 8 microservices architecture, featuring comprehensive CI/CD pipelines, monitoring, and enterprise-grade security.
 
 ## 🏗️ System Architecture
@@ -100,7 +101,7 @@ docker-compose logs -f
 # Stop all services
 docker-compose down
 ```
-
+![Devlopment Environment](DockerDesktop.jpg)
 ## 📁 Project Structure
 
 ```
