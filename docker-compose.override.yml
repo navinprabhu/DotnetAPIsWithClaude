@@ -1,0 +1,147 @@
+version: '3.8'
+
+services:
+  # Development overrides for all services
+  auth-service:
+    build:
+      context: .
+      dockerfile: LibraryApp.AuthService/Dockerfile
+      target: development
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_LOGGING__LOGLEVEL__DEFAULT=Debug
+      - ASPNETCORE_LOGGING__LOGLEVEL__MICROSOFT=Warning
+      - ASPNETCORE_LOGGING__LOGLEVEL__MICROSOFT.ENTITYFRAMEWORKCORE=Information
+    volumes:
+      - ./LibraryApp.AuthService:/app/source:ro
+      - ./LibraryApp.Shared.Models:/app/shared/models:ro
+      - ./LibraryApp.Shared.Infrastructure:/app/shared/infrastructure:ro
+      - ./logs/auth:/app/logs
+    ports:
+      - "5001:5001"
+      - "40001:40001"  # Debug port for remote debugging
+    command: ["dotnet", "watch", "run", "--urls", "http://+:5001"]
+
+  book-service:
+    build:
+      context: .
+      dockerfile: LibraryApp.BookService/Dockerfile
+      target: development
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_LOGGING__LOGLEVEL__DEFAULT=Debug
+      - ASPNETCORE_LOGGING__LOGLEVEL__MICROSOFT=Warning
+      - ASPNETCORE_LOGGING__LOGLEVEL__MICROSOFT.ENTITYFRAMEWORKCORE=Information
+    volumes:
+      - ./LibraryApp.BookService:/app/source:ro
+      - ./LibraryApp.Shared.Models:/app/shared/models:ro
+      - ./LibraryApp.Shared.Infrastructure:/app/shared/infrastructure:ro
+      - ./LibraryApp.Shared.Events:/app/shared/events:ro
+      - ./logs/book:/app/logs
+    ports:
+      - "5002:5002"
+      - "40002:40002"  # Debug port for remote debugging
+    command: ["dotnet", "watch", "run", "--urls", "http://+:5002"]
+
+  member-service:
+    build:
+      context: .
+      dockerfile: LibraryApp.MemberService/Dockerfile
+      target: development
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_LOGGING__LOGLEVEL__DEFAULT=Debug
+      - ASPNETCORE_LOGGING__LOGLEVEL__MICROSOFT=Warning
+      - ASPNETCORE_LOGGING__LOGLEVEL__MICROSOFT.ENTITYFRAMEWORKCORE=Information
+    volumes:
+      - ./LibraryApp.MemberService:/app/source:ro
+      - ./LibraryApp.Shared.Models:/app/shared/models:ro
+      - ./LibraryApp.Shared.Infrastructure:/app/shared/infrastructure:ro
+      - ./LibraryApp.Shared.Events:/app/shared/events:ro
+      - ./logs/member:/app/logs
+    ports:
+      - "5003:5003"
+      - "40003:40003"  # Debug port for remote debugging
+    command: ["dotnet", "watch", "run", "--urls", "http://+:5003"]
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: LibraryApp.ApiGateway/Dockerfile
+      target: development
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_LOGGING__LOGLEVEL__DEFAULT=Debug
+      - ASPNETCORE_LOGGING__LOGLEVEL__MICROSOFT=Warning
+      - ASPNETCORE_LOGGING__LOGLEVEL__OCELOT=Information
+    volumes:
+      - ./LibraryApp.ApiGateway:/app/source:ro
+      - ./logs/gateway:/app/logs
+    ports:
+      - "5000:5000"
+      - "40000:40000"  # Debug port for remote debugging
+    command: ["dotnet", "watch", "run", "--urls", "http://+:5000"]
+
+  # Database development overrides
+  auth-db:
+    environment:
+      - POSTGRES_DB=AuthDatabase_Dev
+      - POSTGRES_USER=auth_dev_user
+      - POSTGRES_PASSWORD=auth_dev_password123
+    volumes:
+      - auth_db_dev_data:/var/lib/postgresql/data
+      - ./scripts/db-init/auth:/docker-entrypoint-initdb.d
+      - ./scripts/db-seed/auth:/docker-entrypoint-seed.d
+    command: >
+      bash -c "
+        docker-entrypoint.sh postgres &
+        while ! pg_isready -U auth_dev_user -d AuthDatabase_Dev; do
+          echo 'Waiting for auth database to be ready...'
+          sleep 2
+        done
+        if [ -d /docker-entrypoint-seed.d ]; then
+          for f in /docker-entrypoint-seed.d/*.sql; do
+            [ -r \"$$f\" ] && echo \"Executing $$f\" && psql -U auth_dev_user -d AuthDatabase_Dev -f \"$$f\"
+          done
+        fi
+        wait
+      "
+
+  book-db:
+    environment:
+      - POSTGRES_DB=BookDatabase_Dev
+      - POSTGRES_USER=book_dev_user
+      - POSTGRES_PASSWORD=book_dev_password123
+    volumes:
+      - book_db_dev_data:/var/lib/postgresql/data
+      - ./scripts/db-init/book:/docker-entrypoint-initdb.d
+      - ./scripts/db-seed/book:/docker-entrypoint-seed.d
+
+  member-db:
+    environment:
+      - POSTGRES_DB=MemberDatabase_Dev
+      - POSTGRES_USER=member_dev_user
+      - POSTGRES_PASSWORD=member_dev_password123
+    volumes:
+      - member_db_dev_data:/var/lib/postgresql/data
+      - ./scripts/db-init/member:/docker-entrypoint-initdb.d
+      - ./scripts/db-seed/member:/docker-entrypoint-seed.d
+
+  # Redis development configuration
+  redis:
+    environment:
+      - REDIS_PASSWORD=redis_dev_password123
+    volumes:
+      - redis_dev_data:/data
+    command: redis-server --appendonly yes --requirepass redis_dev_password123 --loglevel debug
+
+# Development-specific volumes
+volumes:
+  auth_db_dev_data:
+    name: libraryapp_auth_db_dev_data
+  book_db_dev_data:
+    name: libraryapp_book_db_dev_data
+  member_db_dev_data:
+    name: libraryapp_member_db_dev_data
+  redis_dev_data:
+    name: libraryapp_redis_dev_data
